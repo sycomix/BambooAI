@@ -42,7 +42,7 @@ class LogAndCallManager:
 
     def write_summary_to_log(self):
         log_entry = "\n" + "*" * 100 + "\n"
-        log_entry += f"CHAIN COMPLETED"
+        log_entry += "CHAIN COMPLETED"
         log_entry += "\n" + "*" * 100 + "\n"
         log_entry += "\n*** Chain Summary ***\n"
 
@@ -56,9 +56,9 @@ class LogAndCallManager:
             log_entry += f"Total Time (LLM Interact.): {tokens['elapsed_time']:.2f} seconds\n"
             log_entry += f"Average Response Speed: {avg_speed:.2f} tokens/second\n"
             log_entry += f"Total Cost: ${tokens['total_cost']:.4f}\n"
-            
+
         log_entry += "\n" + "*" * 100 + "\n"
-        log_entry += f"NEW CHAIN"
+        log_entry += "NEW CHAIN"
         log_entry += "\n" + "*" * 100 + "\n"
 
         logger.info(log_entry)
@@ -136,12 +136,9 @@ def llm_call(log_and_call_manager, model_dict: dict, messages: str, temperature:
         content_received, local_llm_messages,prompt_tokens_used, completion_tokens_used, total_tokens_used, elapsed_time, tokens_per_second = local_models.llm_local_stream(messages,local_model)
         log_and_call_manager.write_to_log(tool, chain_id, timestamp, local_model, local_llm_messages, content_received, prompt_tokens_used, completion_tokens_used, total_tokens_used, elapsed_time, tokens_per_second)
         return content_received, total_tokens_used
-    #If local_model is None, use OpenAI API
     else:
         init_openai()
-        model = model_dict['llm']
-        if llm_cascade:
-            model = model_dict['llm_gpt4']
+        model = model_dict['llm_gpt4'] if llm_cascade else model_dict['llm']
         try:
             start_time = time.time()
             response = openai.ChatCompletion.create(
@@ -194,7 +191,7 @@ def llm_call(log_and_call_manager, model_dict: dict, messages: str, temperature:
             tokens_per_second = completion_tokens_used / elapsed_time
         else:
             tokens_per_second = 'N/A'
-        
+
         log_and_call_manager.write_to_log(tool, chain_id, timestamp, model_used, messages, content_received, prompt_tokens_used, completion_tokens_used, total_tokens_used, elapsed_time,tokens_per_second)
 
         return content
@@ -256,12 +253,9 @@ def llm_stream(log_and_call_manager, model_dict: dict, messages: str, temperatur
         content_received, local_llm_messages,prompt_tokens_used, completion_tokens_used, total_tokens_used, elapsed_time, tokens_per_second = local_models.llm_local_stream(messages,local_model)
         log_and_call_manager.write_to_log(tool, chain_id, timestamp, local_model, local_llm_messages, content_received, prompt_tokens_used, completion_tokens_used, total_tokens_used, elapsed_time, tokens_per_second)
         return content_received, total_tokens_used
-    #If local_model is None, use OpenAI API
     else:
         init_openai()
-        model = model_dict['llm']
-        if llm_cascade:
-            model = model_dict['llm_gpt4']
+        model = model_dict['llm_gpt4'] if llm_cascade else model_dict['llm']
         try:
             response = openai.ChatCompletion.create(
                 model=model,
@@ -294,13 +288,12 @@ def llm_stream(log_and_call_manager, model_dict: dict, messages: str, temperatur
                 max_tokens=max_tokens,
                 stream = True
             )
-        
+
         # create variables to collect the stream of chunks
         collected_chunks = []
         collected_messages = []
-       
+
         start_time = time.time()
-         # iterate through the stream of events
         for chunk in response:
             collected_chunks.append(chunk)  # save the event response
             chunk_message = chunk['choices'][0]['delta']  # extract the message
@@ -309,7 +302,7 @@ def llm_stream(log_and_call_manager, model_dict: dict, messages: str, temperatur
 
         end_time = time.time()
         elapsed_time = end_time - start_time
-        
+
         print()  # print a newline
 
         # get the complete text received
@@ -322,7 +315,7 @@ def llm_stream(log_and_call_manager, model_dict: dict, messages: str, temperatur
         completion_tokens_used = len(collected_chunks)
 
         # count the number of prompt tokens used
-        encoding = tiktoken.encoding_for_model(model)   
+        encoding = tiktoken.encoding_for_model(model)
         tokens_per_message = 3
         tokens_per_name = 1
         prompt_tokens_used = 0
@@ -341,4 +334,4 @@ def llm_stream(log_and_call_manager, model_dict: dict, messages: str, temperatur
 
         log_and_call_manager.write_to_log(tool, chain_id, timestamp, model_used, messages, content_received, prompt_tokens_used, completion_tokens_used, total_tokens_used, elapsed_time, tokens_per_second)
 
-        return full_reply_content
+        return content_received

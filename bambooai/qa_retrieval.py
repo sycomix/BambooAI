@@ -66,7 +66,7 @@ def retrieve_answer(question, df_columns, match_df=True, similarity_threshold=0.
     model, index = init_pinecone()
     # Vectorize the question
     vector = model.encode([question])[0].tolist()  # Convert the vector to a 1D list
-    
+
     # Query the Pinecone index for the closest matching question
     results = index.query(queries=[vector], top_k=1)
 
@@ -80,7 +80,7 @@ def retrieve_answer(question, df_columns, match_df=True, similarity_threshold=0.
     closest_match_id = match['id']
     similarity_score = match['score']
     print(f"Closest match vector db record: {closest_match_id}, Similarity score: {similarity_score}")
-    
+
     # Check if the similarity score is above the threshold
     if similarity_score < similarity_threshold:
         print(f"Similarity score {similarity_score} is below the threshold {similarity_threshold}")
@@ -96,16 +96,11 @@ def retrieve_answer(question, df_columns, match_df=True, similarity_threshold=0.
     # Get the metadata
     metadata = vector_data['metadata']
     # Check if the dataframe columns match
-    if match_df:
-        if metadata['df_col'] == df_columns:
-            code = metadata['code']
-        else:
-            print("The dataframe columns do not match. I will not use this record.")
-            return None
-    # Return the matadata withouth checking the dataframe columns
-    else:
+    if match_df and metadata['df_col'] == df_columns or not match_df:
         code = metadata['code']
-
+    else:
+        print("The dataframe columns do not match. I will not use this record.")
+        return None
     return code
 
 

@@ -55,9 +55,7 @@ def _extract_code(response: str, analyst: str, local_model: str = None) -> str:
 
 def _extract_rank(response: str) -> str:
 
-    # Search for a pattern between <rank> and </rank> in the response
-    match = re.search(r"<rank>(.*)</rank>", response)
-    if match:
+    if match := re.search(r"<rank>(.*)</rank>", response):
         # If a match is found, extract the rank between <rank> and </rank>
         rank = match.group(1)
     else:
@@ -69,30 +67,14 @@ def _extract_rank(response: str) -> str:
 def _extract_expert(response: str) -> str:
     # Create a pattern to match any of the substrings
     pattern = r'Data Analyst|Data Analysis Theorist|Internet Research Specialist'
-    
-    # Use re.search to find the first match in the input string
-    match = re.search(pattern, response)
-    
-    if match:
-        # If a match is found, return it
-        return match.group()
-    else:
-        # If no match is found, return None
-        return None
+
+    return match.group() if (match := re.search(pattern, response)) else None
     
 def _extract_analyst(response: str) -> str:
     # Create a pattern to match any of the substrings
     pattern = r'Data Analyst DF|Data Analyst Generic'
-    
-    # Use re.search to find the first match in the input string
-    match = re.search(pattern, response)
-    
-    if match:
-        # If a match is found, return it
-        return match.group()
-    else:
-        # If no match is found, return None
-        return None
+
+    return match.group() if (match := re.search(pattern, response)) else None
 
 # Function to remove examples from messages when no longer needed
 def _remove_examples(messages: str) -> str:

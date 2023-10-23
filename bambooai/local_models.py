@@ -18,18 +18,18 @@ def convert_openai_to_alpaca(messages: str):
     formatted_content = ""
     last_role = None
 
-    for i, item in enumerate(messages):
+    for item in messages:
         role = item['role']
         content = item['content']
 
-        if role == 'system':
+        if role == 'assistant':
+            formatted_content += f"### Response: {content}" + "\n"
+        elif role == 'system':
             formatted_content += content + "\n"
         elif role == 'user':
-            formatted_content += "### Instruction: " + content + "\n"
-        elif role == 'assistant':
-            formatted_content += "### Response: " + content + "\n"
+            formatted_content += f"### Instruction: {content}" + "\n"
         last_role = role
-    
+
     # Remove the example output. 
     # It seems to get confused when the code is present in the instruction and tries to interpret rather than generate a new code.
     formatted_content = re.sub(r'Example Output:.*', '', formatted_content, flags=re.S)
@@ -43,12 +43,17 @@ def convert_openai_to_alpaca(messages: str):
 def convert_openai_to_llama2_chat(messages: list):
     formatted_content = ""
     in_inst = False
-    
-    for i, item in enumerate(messages):
+
+    for item in messages:
         role = item['role']
         content = item['content']
-        
-        if role == 'system':
+
+        if role == 'assistant':
+            formatted_content += content
+            if in_inst:
+                formatted_content += " "
+
+        elif role == 'system':
             formatted_content += "<s>[INST]" + "<<SYS>>" + content + "<</SYS>>\n\n"
             in_inst = True
         elif role == 'user':
@@ -57,24 +62,19 @@ def convert_openai_to_llama2_chat(messages: list):
             formatted_content += content
             formatted_content += "[/INST]"
             in_inst = False
-        elif role == 'assistant':
-            formatted_content += content
-            if in_inst:
-                formatted_content += " "
-
     # Remove content starting with "Example Output:" and ending at the next "[/INST]"
     #formatted_content = re.sub(r'Example Output:.*?\[/INST\]', '[/INST]', formatted_content, flags=re.S)
     return formatted_content.strip()
 
 def convert_openai_to_llama2_completion(messages: list):
-    formatted_content = None
-    for message in reversed(messages):
-        if message['role'] == 'user':
-            formatted_content = message['content']
-            break
-    # Remove content starting with "Example Output:" "
-    #formatted_content = re.sub(r'Example Output:.*', '', formatted_content, flags=re.S)
-    return formatted_content
+    return next(
+        (
+            message['content']
+            for message in reversed(messages)
+            if message['role'] == 'user'
+        ),
+        None,
+    )
 
 def llm_local_stream(messages: str,local_model: str):   
     total_tokens_used=0

@@ -154,16 +154,24 @@ class BambooAI:
         if 'ipykernel' in sys.modules:
             # Jupyter notebook or ipython
             display(HTML(f'<p style="color:magenta;">\nCalling Model: {using_model}</p>'))
-            display(HTML(f'<p><b style="color:magenta;">Trying to determine the best method to answer your question, please wait...</b></p><br>'))
+            display(
+                HTML(
+                    '<p><b style="color:magenta;">Trying to determine the best method to answer your question, please wait...</b></p><br>'
+                )
+            )
         else:
             # Other environment (like terminal)
             print(colored(f"\n>> Calling Model: {using_model}", "magenta"))
             cprint(f"\n>> Trying to determine the best method to answer your question, please wait...\n", 'magenta', attrs=['bold'])
 
-        # Call OpenAI API to evaluate the task
-        llm_response = self.llm_stream(self.log_and_call_manager,self.model_dict, eval_messages, llm_cascade=llm_cascade_plan,tool=tool, chain_id=self.chain_id)
-
-        return llm_response
+        return self.llm_stream(
+            self.log_and_call_manager,
+            self.model_dict,
+            eval_messages,
+            llm_cascade=llm_cascade_plan,
+            tool=tool,
+            chain_id=self.chain_id,
+        )
     
     def select_expert(self, pre_eval_messages, llm_cascade_plan=False):
         tool = 'Expert Selector'
@@ -174,7 +182,11 @@ class BambooAI:
         if 'ipykernel' in sys.modules:
             # Jupyter notebook or ipython
             display(HTML(f'<p style="color:magenta;">\nCalling Model: {using_model}</p>'))
-            display(HTML(f'<p><b style="color:magenta;">Selecting the expert to best answer your query, please wait...</b></p><br>'))
+            display(
+                HTML(
+                    '<p><b style="color:magenta;">Selecting the expert to best answer your query, please wait...</b></p><br>'
+                )
+            )
         else:
             # Other environment (like terminal)
             print(colored(f"\n>> Calling Model: {using_model}", "magenta"))
@@ -182,28 +194,20 @@ class BambooAI:
 
         # Call OpenAI API to evaluate the task
         llm_response = self.llm_stream(self.log_and_call_manager,self.model_dict, pre_eval_messages, llm_cascade=llm_cascade_plan, tool=tool,chain_id=self.chain_id)
-        expert = self._extract_expert(llm_response)
-
-        return expert
+        return self._extract_expert(llm_response)
     
     def select_analyst(self, select_analyst_messages, llm_cascade_plan=False):
         tool = 'Analyst Selector'
         # Call OpenAI API to evaluate the task
         llm_response = self.llm_stream(self.log_and_call_manager,self.model_dict, select_analyst_messages, llm_cascade=llm_cascade_plan, tool=tool, chain_id=self.chain_id)
-        analyst = self._extract_analyst(llm_response)
-
-        return analyst
+        return self._extract_analyst(llm_response)
     
     def taskmaster(self, question):
         task = None
         analyst = None
 
         # Switch to gpt-4 if llm_switch_plan parameter is set to True. This will increase the processing time and cost
-        if self.llm_switch_plan:
-            llm_cascade_plan = True
-        else:
-            llm_cascade_plan = False
-
+        llm_cascade_plan = bool(self.llm_switch_plan)
         def display_eval(answer=None):
             if 'ipykernel' in sys.modules:
                 # Jupyter notebook or ipython
@@ -216,7 +220,7 @@ class BambooAI:
 
         ######## Select Expert ###########
         self.pre_eval_messages.append({"role": "user", "content": self.user_task_classification.format(question)})
-        expert = self.select_expert(self.pre_eval_messages,llm_cascade_plan=llm_cascade_plan) 
+        expert = self.select_expert(self.pre_eval_messages,llm_cascade_plan=llm_cascade_plan)
         self.pre_eval_messages.append({"role": "assistant", "content": expert})
 
         ######## Refine Expert Selection, and Formulate a task for the expert ###########
@@ -301,13 +305,9 @@ class BambooAI:
                 if self.vector_db and rank is not None:
                     cprint("\n>> Solution Rank:", 'green', attrs=['bold'])
                     print(rank)
-      
-        # Initialize the loop variable. If user provided question as an argument, the loop will finish after one iteration
-        if question is not None:
-            loop = False
-        else:
-            loop = True
 
+        # Initialize the loop variable. If user provided question as an argument, the loop will finish after one iteration
+        loop = question is None
         # Set the chain id
         chain_id = int(time.time())
         self.chain_id = chain_id
@@ -328,7 +328,7 @@ class BambooAI:
                 if question.strip().lower() == 'exit':
                     self.log_and_call_manager.write_summary_to_log()
                     break
-                
+
             if self.exploratory is True:
                 # Call the taskmaister method with the user's question if the exploratory mode is True
                 analyst,task = self.taskmaster(question)
@@ -341,7 +341,7 @@ class BambooAI:
             else:
                 analyst = 'Data Analyst DF'
                 task = question
-            
+
             if self.vector_db:
                 # Call the retrieve_answer method to check if the question has already been asked and answered
                 if analyst == 'Data Analyst DF':
@@ -371,10 +371,7 @@ class BambooAI:
             # Rank the LLM response
             if self.vector_db:
                 # Switch to gpt-4 if llm_switch_code parameter is set to True. This will increase the processing time and cost
-                if self.llm_switch_code:
-                    llm_cascade_code = True
-                else:
-                    llm_cascade_code = False
+                llm_cascade_code = bool(self.llm_switch_code)
                 rank = self.rank_code(results, code,task,llm_cascade_code=llm_cascade_code)
             else:
                 rank = ""
@@ -403,7 +400,7 @@ class BambooAI:
                 self.add_question_answer_pair(task, df_columns, code, rank)
 
             self.log_and_call_manager.print_summary_to_terminal()
-            
+
             if not loop:
                 self.log_and_call_manager.write_summary_to_log()
                 return 
@@ -428,7 +425,11 @@ class BambooAI:
         if 'ipykernel' in sys.modules:
             # Jupyter notebook or ipython
             display(HTML(f'<p style="color:magenta;">\nCalling Model: {using_model}</p>'))
-            display(HTML(f'<p><b style="color:magenta;">I am generating the first version of the code, please wait...</b></p><br>'))
+            display(
+                HTML(
+                    '<p><b style="color:magenta;">I am generating the first version of the code, please wait...</b></p><br>'
+                )
+            )
         else:
             # Other environment (like terminal)
             print(colored(f"\n>> Calling Model: {using_model}", "magenta"))
@@ -462,7 +463,7 @@ class BambooAI:
         tool = 'Code Debugger'
         # Initialize the messages list with a system message containing the task prompt
         debug_messages = [{"role": "user", "content": self.debug_code_task.format(code,question)}]
-        
+
         if self.local_code_model:
             using_model = self.local_code_model
         else:
@@ -473,7 +474,11 @@ class BambooAI:
         if 'ipykernel' in sys.modules:
             # Jupyter notebook or ipython
             display(HTML(f'<p style="color:magenta;">\nCalling Model: {using_model}</p>'))
-            display(HTML(f'<p><b style="color:magenta;"> I am reviewing and debugging the first version of the code to check for any errors, bugs, or inconsistencies and will make corrections if necessary. Please wait..</b></p><br>'))
+            display(
+                HTML(
+                    '<p><b style="color:magenta;"> I am reviewing and debugging the first version of the code to check for any errors, bugs, or inconsistencies and will make corrections if necessary. Please wait..</b></p><br>'
+                )
+            )
         else:
             # Other environment (like terminal)
             print(colored(f"\n>> Calling Model: {using_model}", "magenta"))
@@ -483,16 +488,20 @@ class BambooAI:
         def display_task():
             if 'ipykernel' in sys.modules:
                 # Jupyter notebook or ipython
-                display(HTML(f'<p><b style="color:magenta;">I have finished debugging the code, and will now proceed to the execution...</b></p><br>'))
+                display(
+                    HTML(
+                        '<p><b style="color:magenta;">I have finished debugging the code, and will now proceed to the execution...</b></p><br>'
+                    )
+                )
             else:
                 # Other environment (like terminal)
                 cprint(f"\n>> I have finished debugging the code, and will now proceed to the execution...\n", 'magenta', attrs=['bold'])
 
         # Call the OpenAI API
         llm_response = self.llm_stream(self.log_and_call_manager,self.model_dict, debug_messages,temperature=0, llm_cascade=llm_cascade_code, local_model=self.local_code_model, tool=tool, chain_id=self.chain_id)
-        
+
         # Extract the code from the API response
-        debugged_code = self._extract_code(llm_response,analyst)       
+        debugged_code = self._extract_code(llm_response,analyst)
         display_task()
 
         return debugged_code
@@ -548,7 +557,12 @@ class BambooAI:
                             display(HTML('<span style="color: #d86c00;">Switching model to gpt-4 to try to improve the outcome.</span>'))
                         else:
                             # CLI
-                            sys.stderr.write('\033[31m' + f'>> Switching model to gpt-4 to try to improve the outcome.' + '\033[0m' + '\n')
+                            sys.stderr.write(
+                                '\033[31m'
+                                + '>> Switching model to gpt-4 to try to improve the outcome.'
+                                + '\033[0m'
+                                + '\n'
+                            )
                             sys.stderr.flush()
                     else:
                         llm_cascade_code = False
@@ -562,7 +576,7 @@ class BambooAI:
                     llm_response = self.llm_call(self.log_and_call_manager,self.model_dict,code_messages,llm_cascade=llm_cascade_code, tool=tool, chain_id=self.chain_id)
                     code_messages.append({"role": "assistant", "content": llm_response})
                     code = self._extract_code(llm_response,analyst)
-                    
+
         # Get the output from the executed code
         results = output.getvalue()
 
@@ -593,7 +607,11 @@ class BambooAI:
         if 'ipykernel' in sys.modules:
             # Jupyter notebook or ipython
             display(HTML(f'<p style="color:magenta;">\nCalling Model: {using_model}</p>'))
-            display(HTML(f'<p><b style="color:magenta;">I am going to evaluate and rank the answer. Please wait...</b></p><br>'))
+            display(
+                HTML(
+                    '<p><b style="color:magenta;">I am going to evaluate and rank the answer. Please wait...</b></p><br>'
+                )
+            )
         else:
             # Other environment (like terminal)
             print(colored(f"\n>> Calling Model: {using_model}", "magenta"))
@@ -602,7 +620,4 @@ class BambooAI:
         # Call the OpenAI API 
         llm_response = self.llm_call(self.log_and_call_manager,self.model_dict, rank_messages,llm_cascade=llm_cascade_code,tool=tool, chain_id=self.chain_id)
 
-        # Extract the rank from the API response
-        rank = self._extract_rank(llm_response)       
-
-        return rank
+        return self._extract_rank(llm_response)

@@ -11,12 +11,7 @@ import re
 class QueryGenerator:
     # Construct a prompt for LLM based on a question
     def construct_prompt(self, question):
-        prompt = (
-            "Extract the search query form this text"
-            f"text: {question}"
-            "Exaple output: Popularity of Python programming language in 2022"
-        )
-        return prompt
+        return f"Extract the search query form this texttext: {question}Exaple output: Popularity of Python programming language in 2022"
     
     # Use LLM to generate a query from a question
     def __call__(self, token_cost_dict,model_dict,chain_id,question):
@@ -32,9 +27,13 @@ class QueryGenerator:
             import models
         log_and_call_manager = models.LogAndCallManager(token_cost_dict)
 
-        llm_response = models.llm_call(log_and_call_manager,model_dict, messages, tool=tool, chain_id=chain_id)
-
-        return llm_response
+        return models.llm_call(
+            log_and_call_manager,
+            model_dict,
+            messages,
+            tool=tool,
+            chain_id=chain_id,
+        )
 
 # Define a class to perform a Google search and retrieve the content of the resulting pages    
 class SearchEngine:
@@ -91,8 +90,7 @@ class DocumentRetriever:
             input = input
         )
 
-        embeds = np.array([d['embedding'] for d in resp['data']])
-        return embeds
+        return np.array([d['embedding'] for d in resp['data']])
     
     # Retrieve the most relevant documents for a question using vector embeddings
     def __call__(self, question, documents, k=5):
@@ -103,9 +101,7 @@ class DocumentRetriever:
         scores = np.dot(question_embed, document_embeds.T)
         # Sort the documents by their cosine similarity to the question
         ranks = np.argsort(-scores)[0, :k].tolist()
-        # Retrieve the most relevant documents
-        contexts = [documents[r] for r in ranks]
-        return contexts
+        return [documents[r] for r in ranks]
 
 # Define a class to generate an answer to a question based on a set of documents
 class Reader:
@@ -132,7 +128,7 @@ class Reader:
         tool = 'Google Search Sumarizer'
         prompt = self.construct_prompt(query, contexts)
         search_messages = [{"role": "system", "content": prompt}]
-        
+
         try:
             # Attempt package-relative import
             from . import models
@@ -144,9 +140,13 @@ class Reader:
 
         #replace llm in model_dict with 'gpt-3.5-turbo-16k'
         model_dict['llm']='gpt-3.5-turbo-16k'
-        llm_response = models.llm_call(log_and_call_manager,model_dict, search_messages, tool=tool, chain_id=chain_id)
-
-        return llm_response
+        return models.llm_call(
+            log_and_call_manager,
+            model_dict,
+            search_messages,
+            tool=tool,
+            chain_id=chain_id,
+        )
     
 class GoogleSearch:
     def __init__(self):
@@ -156,8 +156,7 @@ class GoogleSearch:
         self.reader = Reader()
 
     def _extract_search_query(self,response: str) -> str:
-        search_query = re.sub('\'|"', '',  response).strip()
-        return search_query
+        return re.sub('\'|"', '',  response).strip()
 
     def __call__(self, token_cost_dict,model_dict,chain_id,question):
         question=self._extract_search_query(question)
